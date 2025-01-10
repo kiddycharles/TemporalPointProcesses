@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.utils.data
 
-from transformer import Constants
+from Mine.transformer import Constants
 
 
 def compute_time_to_last_same_event(data):

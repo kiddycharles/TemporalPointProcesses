@@ -6,11 +6,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import transformer.Constants as Constants
+import Mine.transformer.Constants as Constants
 import Utils
 
-from preprocess.Dataset import get_dataloader
-from transformer.Models import Transformer
+from Mine.preprocess.Dataset import get_dataloader
+from Mine.transformer.Models import Transformer
 from tqdm import tqdm
 
 

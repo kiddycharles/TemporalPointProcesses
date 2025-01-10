@@ -3,8 +3,8 @@ import math
 import torch
 import torch.nn as nn
 
-import transformer.Constants as Constants
-from transformer.Layers import EncoderLayer
+import Mine.transformer.Constants as Constants
+from Mine.transformer.Layers import EncoderLayer
 
 
 def get_non_pad_mask(seq):
