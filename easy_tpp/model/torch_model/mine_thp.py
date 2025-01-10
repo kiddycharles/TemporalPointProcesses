@@ -57,8 +57,10 @@ class THP(TorchBaseModel):
 
         # Frequency Component
         self.frequency_stack_layers = nn.ModuleList(
-            [
+            [FrequencyLayer(
+                self.d_model,
 
+            ) for _ in range(self.n_layers)
             ]
         )
 
