@@ -3,8 +3,9 @@ import math
 import torch
 import torch.nn as nn
 
-import Mine.transformer.Constants as Constants
-from Mine.transformer.Layers import EncoderLayer
+import transformer.Constants as Constants
+from transformer.Layers import EncoderLayer
+from transformer.SubLayers import PositionwiseFeedForward
 
 
 def get_non_pad_mask(seq):
@@ -62,6 +63,8 @@ class Encoder(nn.Module):
         )
         self.alpha = nn.Parameter(torch.tensor(1.0), requires_grad=True)
 
+        self.pos_ffn = PositionwiseFeedForward(d_model, d_inner, dropout=dropout, normalize_before=False)
+
     def temporal_enc(self, time, non_pad_mask):
         """
         Input: batch*seq_len.
@@ -84,9 +87,9 @@ class Encoder(nn.Module):
         slf_attn_mask = (slf_attn_mask_keypad + slf_attn_mask_subseq).gt(0)
 
         tem_enc = self.temporal_enc(event_time, non_pad_mask)
-        print("event type embed weight: ", self.event_emb.weight.shape)
+
         enc_output = self.event_emb(event_type)
-        print("event enc_output size: ", enc_output.size())
+
         # nc_output = enc_output * slf_attn_mask
 
         freq_output = enc_output + tem_enc
@@ -97,13 +100,17 @@ class Encoder(nn.Module):
 
         for enc_layer in self.layer_stack:
             enc_output += tem_enc
+            # there is a feedforward within enc_layer, comment out
             enc_output, _ = enc_layer(
                 enc_output,
                 non_pad_mask=non_pad_mask,
                 slf_attn_mask=slf_attn_mask)
 
+        # Temporal representation and Frequency representation fusion
         enc_output = (1- self.alpha) * enc_output + self.alpha * freq_output
 
+        # same feed forward
+        enc_output = self.pos_ffn(enc_output) * non_pad_mask
         return enc_output
 
 
@@ -178,6 +185,9 @@ class FrequencyLayer(nn.Module):
         low_pass[:, self.c:, :] = 0
         low_pass = torch.fft.irfft(low_pass, n=seq_len, dim=1, norm='ortho')
         high_pass = input_tensor - low_pass
+        # Either low * (beta) + (1 - beta) * high or low + beta^2 * high or low + beta * high is okay.
+        # For long sequence forecasting, low_pass (trend) are more important than sudden burst.
+        # Low_pass should be the dominant component as backbone. 
         sequence_emb_fft = low_pass + (self.sqrt_beta**2) * high_pass
 
         hidden_states = self.out_dropout(sequence_emb_fft)
